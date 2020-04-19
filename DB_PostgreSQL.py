@@ -5,10 +5,10 @@ cur = conn.cursor()
 
 
 class db_work:
-    def create_db():  # ??????? ???????
+    def create_db():
         cur.execute("""
         create table if not exists Student(
-        id integer not null,
+        id integer not null PRIMARY KEY,
         name character varying(100) not null,
         gpa numeric(10,2),
         birth timestamp with time zone);
@@ -16,29 +16,43 @@ class db_work:
 
         cur.execute("""
             create table if not exists Course(
-            id integer not null,
+            id integer not null PRIMARY KEY,
             name character varying(100) not null);
+            """)
+
+        cur.execute("""
+            create table if not exists Course_and_Student(
+            id_course integer not null,
+            id_student integer not null,
+            CONSTRAINT ID_course_student PRIMARY KEY (id_course,id_student));
             """)
 
         conn.commit()
 
-    def get_students(course_id):  # ?????????? ????????? ????????????? ?????
-        cur.execute("SELECT name FROM Course where id = (%s)", (course_id,))
-        print(f'на курсе {course_id} учаться следующие студенты:')
-        for students_list in cur.fetchall():
-            for student_name in students_list:
-                print(student_name)
+    def get_students(course_id):
+        cur.execute("""
+            SELECT Student.name, course.name
+            FROM Course_and_Student
+            INNER JOIN Student ON Course_and_Student.id_student = Student.id
+            INNER JOIN Course ON Course_and_Student.id_course = Course.id
+            WHERE Course_and_Student.id_course = (%s)""", (course_id,))
+        students_list = cur.fetchall()
+        print(f'на курсе {students_list[0][1]} учаться следующие студенты:')
+        for student_name in students_list:
+            print(student_name[0])
 
-    def add_students(course_id, students):  # ??????? ????????? ?
+    def add_students(course_id, students):
         for student in students:
-            cur.execute("INSERT INTO Student (id, name, gpa, birth) VALUES (%s, %s, %s, %s)",
+            cur.execute("INSERT INTO Student (id, name, gpa, birth) VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING",
                         (student[0], student[1], student[2], student[3]))
-            cur.execute("INSERT INTO Course (id, name) VALUES (%s, %s)",
-                        (course_id, student[1]))
+            cur.execute("INSERT INTO Course (id, name) VALUES (%s, %s) ON CONFLICT DO NOTHING",
+                        (course_id, f'ADPY-{course_id}'))
+            cur.execute("INSERT INTO Course_and_Student (id_course, id_student) VALUES (%s, %s) ON CONFLICT DO NOTHING",
+                        (course_id, student[0]))
         conn.commit()
 
-    def add_student(Student):  # ?????? ??????? ????????
-        cur.execute("INSERT INTO Student (id, name, gpa, birth) VALUES (%s, %s, %s, %s)",
+    def add_student(Student):
+        cur.execute("INSERT INTO Student (id, name, gpa, birth) VALUES (%s, %s, %s, %s)  ON CONFLICT DO NOTHING",
                     (Student[0], Student[1], Student[2], Student[3]))
         conn.commit()
 
